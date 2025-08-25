@@ -12,13 +12,17 @@ from tqdm import tqdm
 gi.require_version("GnomeDesktop", "3.0")
 from gi.repository import Gio, GnomeDesktop  # isort:skip
 
+thumbnail_size_map = {
+    "normal": GnomeDesktop.DesktopThumbnailSize.NORMAL,
+    "large": GnomeDesktop.DesktopThumbnailSize.LARGE,
+    "x-large": GnomeDesktop.DesktopThumbnailSize.XLARGE,
+    "xx-large": GnomeDesktop.DesktopThumbnailSize.XXLARGE,
+}
 
-global factory
-factory = GnomeDesktop.DesktopThumbnailFactory()
+factory = None
 logger.remove()
 logger.add(sys.stdout, level="INFO")
 logger.add("/tmp/thumbgen.log", level="DEBUG", rotation="100 MB")
-
 
 def make_thumbnail(fpath: str) -> bool:
     mtime = os.path.getmtime(fpath)
@@ -78,13 +82,18 @@ def get_all_files(*, dir_path: Path, recursive: bool) -> List[Path]:
 @click.option(
     "-d", "--img_dirs", required=True, help='directories to generate thumbnails seperated by space, eg: "dir1/dir2 dir3"'
 )
+@click.option(
+    "-s", "--size", default="normal", type=click.Choice(["normal", "large", "x-large", "xx-large"]), help="Thumbnail size: normal, large, x-large, xx-large"
+)
 @click.option("-w", "--workers", default=1, help="no of cpus to use for processing")
 @click.option(
     "-i", "--only_images", is_flag=True, default=False, help="Whether to only look for images to be thumbnailed"
 )
 @click.option("-r", "--recursive", is_flag=True, default=False, help="Whether to recursively look for files")
-def main(img_dirs: str, workers: str, only_images: bool, recursive: bool) -> None:
+def main(img_dirs: str, size: str, workers: str, only_images: bool, recursive: bool) -> None:
     img_dirs = [Path(img_dir) for img_dir in img_dirs.split()]
+    global factory
+    factory = GnomeDesktop.DesktopThumbnailFactory.new(thumbnail_size_map[size])
     for img_dir in img_dirs:
         thumbnail_folder(dir_path=img_dir, workers=workers, only_images=only_images, recursive=recursive)
     print("Thumbnail Generation Completed!")
